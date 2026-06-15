@@ -1,7 +1,7 @@
-streamlit
-pandas
-numpy
-tenseal
+streamlit==1.51.0
+pandas==2.3.3
+numpy==2.3.5
+tenseal==0.3.16
 qiskit
 scipy
 openpyxl
