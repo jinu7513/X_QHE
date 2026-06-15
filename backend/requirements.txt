@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+python-multipart
+tenseal
+qiskit
+qiskit-ibm-runtime
+pandas
+numpy
+scipy
+openpyxl

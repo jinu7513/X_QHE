@@ -1,0 +1,6 @@
+qiskit
+qiskit-ibm-runtime
+pandas
+numpy
+scipy
+openpyxl

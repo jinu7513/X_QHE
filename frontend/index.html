@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quantum HE Regression App</title>
+    <link rel="stylesheet" href="/static/index.css?v=3" />
+  </head>
+  <body>
+    <div class="app-container">
+      <header>
+        <h1>Quantum HE Regression</h1>
+        <p class="subtitle">Analyze spreadsheets using Classical, HHL, and TenSEAL CKKS algorithms.</p>
+      </header>
+
+      <main>
+        <section class="glass-card">
+          <h2>Data Upload</h2>
+          <div id="error-message" class="error-message" style="display: none;"></div>
+          <form id="analyze-form">
+            <div class="form-group">
+              <label>Spreadsheet File (CSV / Excel)</label>
+              <input type="file" id="file-input" accept=".csv,.txt,.xlsx,.xls" required />
+            </div>
+            <div class="form-group">
+              <label>Target Columns (y) - comma separated (Leave blank to auto-infer)</label>
+              <input type="text" id="target-columns-input" placeholder="e.g. quantum_chip_price_usd" />
+            </div>
+            <div class="form-group">
+              <label>Predictor Column (x) - numeric or date (Leave blank to use row index)</label>
+              <input type="text" id="x-column-input" placeholder="e.g. date or efficiency_score" />
+            </div>
+            <button type="submit" id="submit-btn" class="btn-primary">Analyze Data</button>
+          </form>
+        </section>
+
+        <div id="loading" class="loading" style="display: none;">Processing through Quantum & HE layers...</div>
+        
+        <section id="results-section" class="glass-card" style="margin-top: 2rem; display: none;">
+          <h2>Analysis Results</h2>
+          <div id="results-container"></div>
+        </section>
+      </main>
+    </div>
+    <script src="/static/app.js?v=3"></script>
+  </body>
+</html>
