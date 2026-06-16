@@ -7,6 +7,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import streamlit as st
+from qiskit import QuantumCircuit
+from qiskit.quantum_info import Statevector
 
 ROOT_DIR = Path(__file__).resolve().parent
 BACKEND_DIR = ROOT_DIR / "backend"
@@ -229,6 +231,191 @@ def numeric_columns(df: pd.DataFrame) -> list[str]:
     return [col for col in df.columns if pd.to_numeric(df[col], errors="coerce").notna().any()]
 
 
+def next_power_of_two(value: int) -> int:
+    if value < 1:
+        raise ValueError("Amplitude encoding requires at least one value.")
+    return 1 << int(np.ceil(np.log2(value)))
+
+
+def prepare_amplitude_payload(values: np.ndarray) -> dict:
+    y = np.asarray(values, dtype=float)
+    if y.size < 2:
+        raise ValueError("QHE handoff requires at least two finite target values.")
+
+    mean = float(np.mean(y))
+    centered = y - mean
+    norm = float(np.linalg.norm(centered))
+    if norm < 1.0e-12:
+        raise ValueError("Selected target column is constant after centering; amplitude encoding is undefined.")
+
+    padded_size = next_power_of_two(len(centered))
+    n_qubits = int(np.log2(padded_size))
+    padded = np.pad(centered, (0, padded_size - len(centered)))
+    amplitudes = padded / norm
+
+    return {
+        "amplitudes": amplitudes.astype(complex),
+        "mean": mean,
+        "norm": norm,
+        "original_length": len(centered),
+        "padded_size": padded_size,
+        "padding": padded_size - len(centered),
+        "n_qubits": n_qubits,
+    }
+
+
+def apply_qotp(circuit: QuantumCircuit, a_key: np.ndarray, b_key: np.ndarray, inverse: bool = False) -> None:
+    if inverse:
+        for qubit, bit in enumerate(a_key):
+            if int(bit):
+                circuit.x(qubit)
+        for qubit, bit in enumerate(b_key):
+            if int(bit):
+                circuit.z(qubit)
+        return
+
+    for qubit, bit in enumerate(b_key):
+        if int(bit):
+            circuit.z(qubit)
+    for qubit, bit in enumerate(a_key):
+        if int(bit):
+            circuit.x(qubit)
+
+
+def update_h_key(a_key: np.ndarray, b_key: np.ndarray, qubit: int) -> None:
+    a_key[qubit], b_key[qubit] = int(b_key[qubit]), int(a_key[qubit])
+
+
+def update_cx_key(a_key: np.ndarray, b_key: np.ndarray, control: int, target: int) -> None:
+    a_key[target] = int(a_key[target]) ^ int(a_key[control])
+    b_key[control] = int(b_key[control]) ^ int(b_key[target])
+
+
+def build_identity_clifford_eval(n_qubits: int, a_key: np.ndarray, b_key: np.ndarray) -> tuple[QuantumCircuit, list[str]]:
+    circuit = QuantumCircuit(n_qubits, name="qhe_identity_clifford_eval")
+    operations: list[str] = []
+
+    circuit.h(0)
+    update_h_key(a_key, b_key, 0)
+    operations.append("H(q0)")
+
+    if n_qubits >= 2:
+        circuit.cx(0, 1)
+        update_cx_key(a_key, b_key, 0, 1)
+        operations.append("CX(q0, q1)")
+
+        circuit.cx(0, 1)
+        update_cx_key(a_key, b_key, 0, 1)
+        operations.append("CX(q0, q1)")
+
+    circuit.h(0)
+    update_h_key(a_key, b_key, 0)
+    operations.append("H(q0)")
+    return circuit, operations
+
+
+def run_qhe_hhl_handoff(x_values: np.ndarray, y_values: np.ndarray, seed: int = 2026) -> dict:
+    mask = np.isfinite(x_values) & np.isfinite(y_values)
+    x = np.asarray(x_values[mask], dtype=float)
+    y = np.asarray(y_values[mask], dtype=float)
+
+    payload = prepare_amplitude_payload(y)
+    n_qubits = int(payload["n_qubits"])
+    amplitudes = payload["amplitudes"]
+    initial_state = Statevector(amplitudes)
+
+    rng = np.random.default_rng(seed)
+    initial_a = rng.integers(0, 2, size=n_qubits, dtype=int)
+    initial_b = rng.integers(0, 2, size=n_qubits, dtype=int)
+    updated_a = initial_a.copy()
+    updated_b = initial_b.copy()
+
+    encrypt = QuantumCircuit(n_qubits, name="qotp_encrypt")
+    apply_qotp(encrypt, initial_a, initial_b)
+
+    evaluate, operations = build_identity_clifford_eval(n_qubits, updated_a, updated_b)
+
+    decrypt = QuantumCircuit(n_qubits, name="qotp_decrypt")
+    apply_qotp(decrypt, updated_a, updated_b, inverse=True)
+
+    decrypted_state = initial_state.evolve(encrypt).evolve(evaluate).evolve(decrypt)
+    fidelity = float(abs(np.vdot(initial_state.data, decrypted_state.data)) ** 2)
+
+    recovered_centered = np.real_if_close(decrypted_state.data[: payload["original_length"]]).real * payload["norm"]
+    recovered_y = recovered_centered + payload["mean"]
+    reconstruction_error = float(np.max(np.abs(recovered_y - y)))
+
+    handoff_result = run_analysis(x, recovered_y)
+
+    return {
+        "n_qubits": n_qubits,
+        "padded_size": payload["padded_size"],
+        "padding": payload["padding"],
+        "mean": payload["mean"],
+        "norm": payload["norm"],
+        "initial_a": initial_a.tolist(),
+        "initial_b": initial_b.tolist(),
+        "updated_a": updated_a.tolist(),
+        "updated_b": updated_b.tolist(),
+        "operations": operations,
+        "fidelity": fidelity,
+        "reconstruction_error": reconstruction_error,
+        "handoff_result": handoff_result,
+    }
+
+
+def render_qhe_hhl_handoff(x_values: np.ndarray, y_values: np.ndarray) -> None:
+    with st.expander("QHE amplitude-encoding handoff to HHL", expanded=False):
+        st.caption(
+            "The full target column is scaled, padded, amplitude encoded, protected with a "
+            "Quantum One-Time Pad, homomorphically evaluated with an identity-preserving "
+            "Clifford circuit, decrypted, then handed to the existing HHL regression solver."
+        )
+
+        try:
+            qhe = run_qhe_hhl_handoff(x_values, y_values)
+        except Exception as exc:
+            st.warning(f"QHE handoff demo skipped: {exc}")
+            return
+
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Amplitude qubits", qhe["n_qubits"])
+        c2.metric("Encoded dimension", qhe["padded_size"])
+        c3.metric("Zero padding", qhe["padding"])
+        c4.metric("Fidelity", f"{qhe['fidelity']:.8f}")
+
+        c5, c6 = st.columns(2)
+        c5.metric("Max reconstruction error", f"{qhe['reconstruction_error']:.3e}")
+        c6.metric("Scaling norm", f"{qhe['norm']:.6g}")
+
+        st.markdown("**QOTP keys and homomorphic Clifford evaluation**")
+        st.code(
+            "\n".join(
+                [
+                    f"initial a = {qhe['initial_a']}",
+                    f"initial b = {qhe['initial_b']}",
+                    f"evaluated gates = {' -> '.join(qhe['operations'])}",
+                    f"updated a = {qhe['updated_a']}",
+                    f"updated b = {qhe['updated_b']}",
+                ]
+            )
+        )
+
+        handoff = qhe["handoff_result"].get("hhl", {})
+        st.markdown("**HHL after QHE decode**")
+        h1, h2, h3 = st.columns(3)
+        h1.metric("Intercept", f"{float(handoff.get('intercept', float('nan'))):.6g}")
+        h2.metric("Slope", f"{float(handoff.get('slope', float('nan'))):.6g}")
+        h3.metric("R2", f"{float(handoff.get('r2', float('nan'))):.6g}")
+
+        st.info(
+            "This is a limited QHE handoff demo. It encrypts the amplitude-encoded full data "
+            "state and verifies a Clifford/QOTP key-update pipeline before passing the decoded "
+            "data to HHL. Running the full HHL circuit homomorphically would require handling "
+            "non-Clifford rotations and measurements, which is beyond this prototype."
+        )
+
+
 st.title("Quantum HE Regression")
 st.caption("Classical regression, Qiskit HHL, and TenSEAL CKKS + HHL comparison")
 
@@ -308,3 +495,5 @@ for target in targets:
     with col3:
         render_metrics("HE + HHL", result.get("he_hhl", {}), include_stats=True)
         render_encrypted_preview(result.get("he_hhl", {}).get("encrypted_preview", {}))
+
+    render_qhe_hhl_handoff(x_values, y_values)
