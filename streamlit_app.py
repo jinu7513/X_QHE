@@ -26,12 +26,12 @@ st.set_page_config(
 
 
 LINE_LABELS = {
-    "classical": "일반 선형회귀",
+    "classical": "Classical Regression",
     "hhl": "Quantum HHL",
     "he_hhl": "CKKS + HHL",
 }
 
-SERIES_LABELS = ["실제 데이터", "일반 선형회귀", "Quantum HHL", "CKKS + HHL"]
+SERIES_LABELS = ["Actual Data", "Classical Regression", "Quantum HHL", "CKKS + HHL"]
 SERIES_COLORS = ["#111827", "#0ea5e9", "#7c3aed", "#d97706"]
 
 
@@ -289,7 +289,7 @@ def build_chart_frame(
                 "x": float(x_values[i]),
                 "x_label": x_labels[i] if i < len(x_labels) else str(i),
                 "y": float(y_values[i]),
-                "series": "실제 데이터",
+                "series": "Actual Data",
                 "kind": "actual",
             }
         )
@@ -383,11 +383,11 @@ def render_metrics(title: str, data: dict, include_stats: bool = False) -> None:
 
     metric_labels = []
     if include_stats:
-        metric_labels.extend([("y 평균", data.get("mean_y")), ("y 분산", data.get("var_y"))])
+        metric_labels.extend([("Mean (y)", data.get("mean_y")), ("Variance (y)", data.get("var_y"))])
     metric_labels.extend(
         [
-            ("절편", data.get("intercept")),
-            ("기울기", data.get("slope")),
+            ("Intercept", data.get("intercept")),
+            ("Slope", data.get("slope")),
             ("R2", data.get("r2")),
         ]
     )
@@ -589,13 +589,13 @@ def render_qhe_hhl_handoff(x_values: np.ndarray, y_values: np.ndarray) -> None:
             return
 
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("필요 큐빗 수", qhe["n_qubits"])
-        c2.metric("인코딩 차원", qhe["padded_size"])
-        c3.metric("0 패딩 수", qhe["padding"])
+        c1.metric("Amplitude qubits", qhe["n_qubits"])
+        c2.metric("Encoded dimension", qhe["padded_size"])
+        c3.metric("Zero padding", qhe["padding"])
         c4.metric("Fidelity", f"{qhe['fidelity']:.8f}")
 
         c5, c6 = st.columns(2)
-        c5.metric("최대 복원 오차", f"{qhe['reconstruction_error']:.3e}")
+        c5.metric("Max reconstruction error", f"{qhe['reconstruction_error']:.3e}")
         c6.metric("Scaling norm", f"{qhe['norm']:.6g}")
 
         st.markdown("**QOTP 키와 Clifford 평가**")
@@ -614,8 +614,8 @@ def render_qhe_hhl_handoff(x_values: np.ndarray, y_values: np.ndarray) -> None:
         handoff = qhe["handoff_result"].get("hhl", {})
         st.markdown("**QHE 복호화 후 HHL 결과**")
         h1, h2, h3 = st.columns(3)
-        h1.metric("절편", f"{float(handoff.get('intercept', float('nan'))):.6g}")
-        h2.metric("기울기", f"{float(handoff.get('slope', float('nan'))):.6g}")
+        h1.metric("Intercept", f"{float(handoff.get('intercept', float('nan'))):.6g}")
+        h2.metric("Slope", f"{float(handoff.get('slope', float('nan'))):.6g}")
         h3.metric("R2", f"{float(handoff.get('r2', float('nan'))):.6g}")
 
         st.info(
@@ -689,7 +689,7 @@ for target in targets:
     st.divider()
     st.header(f"분석 결과: {target}")
 
-    with st.spinner("일반 선형회귀, Quantum HHL, CKKS + HHL 분석 중..."):
+    with st.spinner("Classical Regression, Quantum HHL, CKKS + HHL 분석 중..."):
         try:
             result = run_analysis(x_values, y_values)
         except Exception as exc:
@@ -703,7 +703,7 @@ for target in targets:
     st.markdown('<div class="section-label">방법별 수치 결과</div>', unsafe_allow_html=True)
     col1, col2, col3 = st.columns(3)
     with col1:
-        render_metrics("일반 선형회귀", result.get("classical", {}), include_stats=True)
+        render_metrics("Classical Regression", result.get("classical", {}), include_stats=True)
     with col2:
         render_metrics("Quantum HHL", result.get("hhl", {}))
     with col3:
