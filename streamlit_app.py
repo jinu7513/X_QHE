@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import html
 import sys
 from pathlib import Path
 
@@ -138,6 +139,35 @@ def inject_page_styles() -> None:
             line-height: 1.55;
             margin-bottom: 1rem;
         }
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+            gap: 0.58rem;
+            margin-top: 0.35rem;
+            margin-bottom: 0.55rem;
+        }
+        .metric-card {
+            border: 1px solid rgba(15, 23, 42, 0.10);
+            border-radius: 8px;
+            background: #ffffff;
+            padding: 0.72rem 0.78rem;
+            min-width: 0;
+        }
+        .metric-label {
+            color: #64748b;
+            font-size: 0.78rem;
+            font-weight: 680;
+            line-height: 1.25;
+            margin-bottom: 0.3rem;
+        }
+        .metric-value {
+            color: #0f172a;
+            font-size: 1.06rem;
+            font-weight: 760;
+            line-height: 1.2;
+            font-variant-numeric: tabular-nums;
+            overflow-wrap: anywhere;
+        }
         @media (max-width: 900px) {
             .flow-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -238,7 +268,7 @@ def format_month_day_labels(dates: pd.Series, fallback: pd.Series) -> list[str]:
         if pd.isna(date_value):
             labels.append(str(original_value))
         else:
-            labels.append(f"{date_value.month}:{date_value.day}")
+            labels.append(f"{date_value.month}/{date_value.day}")
     return labels
 
 
@@ -333,7 +363,7 @@ def render_chart(chart_df: pd.DataFrame, x_title: str, y_title: str, x_axis_type
 
     x_encoding = {"field": "x_axis", "type": x_axis_type, "title": x_title}
     if x_axis_type == "temporal":
-        x_encoding["axis"] = {"format": "%-m:%-d", "labelAngle": -35, "labelOverlap": True}
+        x_encoding["axis"] = {"format": "%-m/%-d", "labelAngle": -35, "labelOverlap": True}
 
     spec = {
         "height": 380,
@@ -408,9 +438,15 @@ def render_metrics(title: str, data: dict, include_stats: bool = False) -> None:
         ]
     )
 
-    cols = st.columns(len(metric_labels))
-    for col, (label, value) in zip(cols, metric_labels):
-        col.metric(label, format_number(value))
+    cards = []
+    for label, value in metric_labels:
+        cards.append(
+            '<div class="metric-card">'
+            f'<div class="metric-label">{html.escape(label)}</div>'
+            f'<div class="metric-value">{html.escape(format_number(value))}</div>'
+            "</div>"
+        )
+    st.markdown(f'<div class="metric-grid">{"".join(cards)}</div>', unsafe_allow_html=True)
 
 
 def render_encrypted_preview(preview: dict) -> None:
