@@ -27,11 +27,12 @@ st.set_page_config(
 
 
 LINE_LABELS = {
+    "classical": "Classical Regression",
     "he_hhl": "CKKS + HHL",
 }
 
-SERIES_LABELS = ["Actual Data", "CKKS + HHL"]
-SERIES_COLORS = ["#111827", "#d97706"]
+SERIES_LABELS = ["Actual Data", "Classical Regression", "CKKS + HHL"]
+SERIES_COLORS = ["#111827", "#0ea5e9", "#d97706"]
 
 
 def inject_page_styles() -> None:
@@ -743,7 +744,7 @@ for target in targets:
     st.divider()
     st.header(f"분석 결과: {target}")
 
-    with st.spinner("CKKS + HHL 분석 중..."):
+    with st.spinner("Classical Regression, CKKS + HHL 분석 중..."):
         try:
             result = run_analysis(x_values, y_values)
         except Exception as exc:
@@ -754,8 +755,12 @@ for target in targets:
     st.markdown('<div class="section-label">회귀 직선 비교</div>', unsafe_allow_html=True)
     render_chart(chart_df, x_title=x_title, y_title=target, x_axis_type=x_axis_type)
 
-    st.markdown('<div class="section-label">CKKS + HHL 수치 결과</div>', unsafe_allow_html=True)
-    render_metrics("CKKS + HHL", result.get("he_hhl", {}), include_stats=True)
-    render_encrypted_preview(result.get("he_hhl", {}).get("encrypted_preview", {}))
+    st.markdown('<div class="section-label">Classical vs CKKS + HHL 수치 결과</div>', unsafe_allow_html=True)
+    col1, col2 = st.columns(2)
+    with col1:
+        render_metrics("Classical Regression", result.get("classical", {}), include_stats=True)
+    with col2:
+        render_metrics("CKKS + HHL", result.get("he_hhl", {}), include_stats=True)
+        render_encrypted_preview(result.get("he_hhl", {}).get("encrypted_preview", {}))
 
     render_qhe_hhl_handoff(x_values, y_values)
