@@ -415,7 +415,7 @@ def render_chart(chart_df: pd.DataFrame, x_title: str, y_title: str, x_axis_type
         "config": {
             "background": "transparent",
             "axis": {"labelColor": "#94a3b8", "titleColor": "#f8fafc", "gridColor": "#334155"},
-            "legend": {"labelColor": "#f8fafc", "titleColor": "#f8fafc"},
+            "legend": {"labelColor": "#111827", "titleColor": "#111827"},
             "view": {"stroke": "transparent"},
         },
     }
