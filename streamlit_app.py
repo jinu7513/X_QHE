@@ -234,7 +234,17 @@ def read_spreadsheet(uploaded_file) -> pd.DataFrame:
     raise ValueError("CSV, TXT, XLSX, XLS 파일만 지원합니다.")
 
 
-def parse_x_axis(series: pd.Series) -> tuple[np.ndarray, list[str], str]:
+def format_month_day_labels(dates: pd.Series, fallback: pd.Series) -> list[str]:
+    labels: list[str] = []
+    for date_value, original_value in zip(dates, fallback):
+        if pd.isna(date_value):
+            labels.append(str(original_value))
+        else:
+            labels.append(f"{date_value.month}:{date_value.day}")
+    return labels
+
+
+def parse_x_axis(series: pd.Series) -> tuple[np.ndarray, np.ndarray, list[str], str, str]:
     labels = series.astype(str).tolist()
 
     if pd.api.types.is_datetime64_any_dtype(series):
@@ -244,17 +254,18 @@ def parse_x_axis(series: pd.Series) -> tuple[np.ndarray, list[str], str]:
             raise ValueError("X 컬럼에는 유효한 숫자 또는 날짜 값이 최소 2개 이상 필요합니다.")
         origin = finite_dates.min()
         values = ((dates - origin).dt.total_seconds() / 86400.0).to_numpy(dtype=float)
-        return values, labels, f"{series.name} (days from {origin.date()})"
+        return values, dates.to_numpy(), format_month_day_labels(dates, series), str(series.name), "temporal"
 
     numeric = pd.to_numeric(series, errors="coerce")
     if numeric.notna().sum() >= 2:
-        return numeric.to_numpy(dtype=float), labels, str(series.name)
+        values = numeric.to_numpy(dtype=float)
+        return values, values.copy(), labels, str(series.name), "quantitative"
 
     dates = pd.to_datetime(series, errors="coerce")
     if dates.notna().sum() >= 2:
         origin = dates.dropna().min()
         values = ((dates - origin).dt.total_seconds() / 86400.0).to_numpy(dtype=float)
-        return values, labels, f"{series.name} (days from {origin.date()})"
+        return values, dates.to_numpy(), format_month_day_labels(dates, series), str(series.name), "temporal"
 
     raise ValueError("X 컬럼에는 유효한 숫자 또는 날짜 값이 최소 2개 이상 필요합니다.")
 
@@ -272,13 +283,14 @@ def finite_float(value) -> float | None:
 def build_chart_frame(
     x_values: np.ndarray,
     y_values: np.ndarray,
+    x_axis_values: np.ndarray,
     x_labels: list[str],
     result: dict,
 ) -> pd.DataFrame:
     mask = np.isfinite(x_values) & np.isfinite(y_values)
     indices = np.where(mask)[0]
     if len(indices) == 0:
-        return pd.DataFrame(columns=["x", "x_label", "y", "series", "kind"])
+        return pd.DataFrame(columns=["x", "x_axis", "x_label", "y", "series", "kind"])
 
     sorted_indices = indices[np.argsort(x_values[indices])]
     rows: list[dict[str, object]] = []
@@ -287,6 +299,7 @@ def build_chart_frame(
         rows.append(
             {
                 "x": float(x_values[i]),
+                "x_axis": x_axis_values[i],
                 "x_label": x_labels[i] if i < len(x_labels) else str(i),
                 "y": float(y_values[i]),
                 "series": "Actual Data",
@@ -304,6 +317,7 @@ def build_chart_frame(
             rows.append(
                 {
                     "x": float(x_values[i]),
+                    "x_axis": x_axis_values[i],
                     "x_label": x_labels[i] if i < len(x_labels) else str(i),
                     "y": float(intercept + slope * x_values[i]),
                     "series": label,
@@ -314,10 +328,14 @@ def build_chart_frame(
     return pd.DataFrame(rows)
 
 
-def render_chart(chart_df: pd.DataFrame, x_title: str, y_title: str) -> None:
+def render_chart(chart_df: pd.DataFrame, x_title: str, y_title: str, x_axis_type: str) -> None:
     if chart_df.empty:
         st.warning("그래프로 표시할 유효한 데이터가 없습니다.")
         return
+
+    x_encoding = {"field": "x_axis", "type": x_axis_type, "title": x_title}
+    if x_axis_type == "temporal":
+        x_encoding["axis"] = {"format": "%-m:%-d", "labelAngle": -35, "labelOverlap": True}
 
     spec = {
         "height": 380,
@@ -326,7 +344,7 @@ def render_chart(chart_df: pd.DataFrame, x_title: str, y_title: str) -> None:
                 "transform": [{"filter": "datum.kind == 'actual'"}],
                 "mark": {"type": "point", "filled": True, "size": 70, "opacity": 0.9},
                 "encoding": {
-                    "x": {"field": "x", "type": "quantitative", "title": x_title},
+                    "x": x_encoding,
                     "y": {"field": "y", "type": "quantitative", "title": y_title},
                     "color": {
                         "field": "series",
@@ -347,7 +365,7 @@ def render_chart(chart_df: pd.DataFrame, x_title: str, y_title: str) -> None:
                 "transform": [{"filter": "datum.kind == 'line'"}],
                 "mark": {"type": "line", "strokeWidth": 3},
                 "encoding": {
-                    "x": {"field": "x", "type": "quantitative", "title": x_title},
+                    "x": x_encoding,
                     "y": {"field": "y", "type": "quantitative", "title": y_title},
                     "color": {
                         "field": "series",
@@ -675,10 +693,12 @@ if not targets:
 try:
     if x_choice == "Use row index":
         x_values = np.arange(len(df), dtype=float)
+        x_axis_values = x_values.copy()
         x_labels = [str(i) for i in range(len(df))]
         x_title = "row index"
+        x_axis_type = "quantitative"
     else:
-        x_values, x_labels, x_title = parse_x_axis(df[x_choice])
+        x_values, x_axis_values, x_labels, x_title, x_axis_type = parse_x_axis(df[x_choice])
 except Exception as exc:
     st.error(str(exc))
     st.stop()
@@ -696,9 +716,9 @@ for target in targets:
             st.error(f"분석 실패: {exc}")
             continue
 
-    chart_df = build_chart_frame(x_values, y_values, x_labels, result)
+    chart_df = build_chart_frame(x_values, y_values, x_axis_values, x_labels, result)
     st.markdown('<div class="section-label">회귀 직선 비교</div>', unsafe_allow_html=True)
-    render_chart(chart_df, x_title=x_title, y_title=target)
+    render_chart(chart_df, x_title=x_title, y_title=target, x_axis_type=x_axis_type)
 
     st.markdown('<div class="section-label">방법별 수치 결과</div>', unsafe_allow_html=True)
     col1, col2, col3 = st.columns(3)
