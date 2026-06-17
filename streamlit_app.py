@@ -26,13 +26,11 @@ st.set_page_config(
 
 
 LINE_LABELS = {
-    "classical": "Classical Regression",
-    "hhl": "Quantum HHL",
     "he_hhl": "CKKS + HHL",
 }
 
-SERIES_LABELS = ["Actual Data", "Classical Regression", "Quantum HHL", "CKKS + HHL"]
-SERIES_COLORS = ["#111827", "#0ea5e9", "#7c3aed", "#d97706"]
+SERIES_LABELS = ["Actual Data", "CKKS + HHL"]
+SERIES_COLORS = ["#111827", "#d97706"]
 
 
 def inject_page_styles() -> None:
@@ -169,8 +167,8 @@ def render_app_header() -> None:
             <div class="app-eyebrow">보안 데이터 분석 프로젝트</div>
             <h1 class="app-title">CKKS 동형암호와 HHL로 보는 보안 회귀 분석</h1>
             <div class="app-subtitle">
-                스프레드시트 데이터를 입력하면 일반 선형회귀, Qiskit 기반 HHL, CKKS로 암호화된
-                집계값을 사용한 HHL 결과를 한 화면에서 비교합니다. 연구 확장 파트에서는
+                스프레드시트 데이터를 입력하면 CKKS로 암호화된 집계값을 구성하고,
+                이를 HHL 선형시스템 풀이로 연결한 회귀 결과를 시각화합니다. 연구 확장 파트에서는
                 amplitude encoding과 QOTP 기반 QHE handoff가 데이터 상태를 보존하는지도 확인합니다.
             </div>
             <div class="pill-row">
@@ -202,7 +200,7 @@ def render_pipeline_overview() -> None:
             <div class="flow-item">
                 <div class="flow-index">STEP 3</div>
                 <div class="flow-title">HHL 비교</div>
-                <div class="flow-copy">복호화된 집계값으로 A beta = b를 만들고 HHL 방식의 선형시스템 풀이 결과를 비교합니다.</div>
+                <div class="flow-copy">복호화된 집계값으로 A beta = b를 만들고 HHL 방식의 선형시스템 풀이 결과를 표시합니다.</div>
             </div>
             <div class="flow-item">
                 <div class="flow-index">STEP 4</div>
@@ -709,7 +707,7 @@ for target in targets:
     st.divider()
     st.header(f"분석 결과: {target}")
 
-    with st.spinner("Classical Regression, Quantum HHL, CKKS + HHL 분석 중..."):
+    with st.spinner("CKKS + HHL 분석 중..."):
         try:
             result = run_analysis(x_values, y_values)
         except Exception as exc:
@@ -720,14 +718,8 @@ for target in targets:
     st.markdown('<div class="section-label">회귀 직선 비교</div>', unsafe_allow_html=True)
     render_chart(chart_df, x_title=x_title, y_title=target, x_axis_type=x_axis_type)
 
-    st.markdown('<div class="section-label">방법별 수치 결과</div>', unsafe_allow_html=True)
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        render_metrics("Classical Regression", result.get("classical", {}), include_stats=True)
-    with col2:
-        render_metrics("Quantum HHL", result.get("hhl", {}))
-    with col3:
-        render_metrics("CKKS + HHL", result.get("he_hhl", {}), include_stats=True)
-        render_encrypted_preview(result.get("he_hhl", {}).get("encrypted_preview", {}))
+    st.markdown('<div class="section-label">CKKS + HHL 수치 결과</div>', unsafe_allow_html=True)
+    render_metrics("CKKS + HHL", result.get("he_hhl", {}), include_stats=True)
+    render_encrypted_preview(result.get("he_hhl", {}).get("encrypted_preview", {}))
 
     render_qhe_hhl_handoff(x_values, y_values)
