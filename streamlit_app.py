@@ -140,6 +140,61 @@ def inject_page_styles() -> None:
             line-height: 1.55;
             margin-bottom: 1rem;
         }
+        .story-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.72rem;
+            margin-bottom: 1rem;
+        }
+        .story-panel {
+            border: 1px solid rgba(15, 23, 42, 0.10);
+            border-radius: 8px;
+            background: #ffffff;
+            padding: 0.95rem 1rem;
+            min-height: 154px;
+        }
+        .story-kicker {
+            color: #0f766e;
+            font-size: 0.78rem;
+            font-weight: 780;
+            margin-bottom: 0.42rem;
+        }
+        .story-title {
+            color: #0f172a;
+            font-size: 1rem;
+            font-weight: 780;
+            margin-bottom: 0.35rem;
+        }
+        .story-copy {
+            color: #475569;
+            font-size: 0.88rem;
+            line-height: 1.55;
+        }
+        .link-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.65rem;
+        }
+        .link-card {
+            border: 1px solid rgba(15, 23, 42, 0.10);
+            border-radius: 8px;
+            background: #ffffff;
+            padding: 0.78rem 0.9rem;
+        }
+        .link-card a {
+            color: #075985;
+            font-weight: 760;
+            text-decoration: none;
+        }
+        .link-card a:hover {
+            text-decoration: underline;
+        }
+        .link-copy {
+            color: #475569;
+            font-size: 0.84rem;
+            line-height: 1.5;
+            margin-top: 0.28rem;
+        }
         .metric-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
@@ -172,6 +227,10 @@ def inject_page_styles() -> None:
         @media (max-width: 900px) {
             .flow-grid {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .story-grid,
+            .link-grid {
+                grid-template-columns: 1fr;
             }
             .app-title {
                 font-size: 1.55rem;
@@ -238,6 +297,97 @@ def render_pipeline_overview() -> None:
                 <div class="flow-title">QHE handoff</div>
                 <div class="flow-copy">전체 y값을 amplitude encoding한 뒤 QOTP/Clifford 검증을 거쳐 HHL로 넘기는 연구용 흐름을 보여줍니다.</div>
             </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_project_story() -> None:
+    st.markdown('<div class="section-label">프로젝트가 다루는 문제</div>', unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="story-grid">
+            <div class="story-panel">
+                <div class="story-kicker">WHY</div>
+                <div class="story-title">데이터는 쓰고 싶지만 노출은 줄이고 싶다</div>
+                <div class="story-copy">
+                    기업과 기관은 로그, 매출, 센서, 의료·금융 데이터처럼 민감한 정보를 분석해야 합니다.
+                    하지만 분석을 위해 데이터를 평문으로 모으면 유출 위험과 신뢰 비용이 커집니다.
+                </div>
+            </div>
+            <div class="story-panel">
+                <div class="story-kicker">HOW</div>
+                <div class="story-title">CKKS로 계산 가능한 암호문을 만든다</div>
+                <div class="story-copy">
+                    이 앱은 회귀 분석에 필요한 합계와 곱셈 통계량을 CKKS 동형암호로 계산합니다.
+                    즉, 원자료 전체를 그대로 공개하지 않고도 분석에 필요한 형태로 요약합니다.
+                </div>
+            </div>
+            <div class="story-panel">
+                <div class="story-kicker">FUTURE</div>
+                <div class="story-title">HHL은 미래형 계산 가속의 방향을 보여준다</div>
+                <div class="story-copy">
+                    현재는 작은 선형시스템을 시뮬레이션하는 수준이지만, 양자 선형시스템 알고리즘이 발전하면
+                    보안성을 유지하면서 계산 병목을 줄이는 방향을 탐색할 수 있습니다.
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_concept_guide() -> None:
+    with st.expander("핵심 개념과 참고 링크", expanded=True):
+        st.markdown(
+            """
+            <div class="link-grid">
+                <div class="link-card">
+                    <a href="https://www.microsoft.com/en-us/research/project/microsoft-seal/" target="_blank">Homomorphic Encryption</a>
+                    <div class="link-copy">
+                        암호화된 데이터를 복호화하지 않고 계산하는 기술입니다. 이 프로젝트의 핵심 문제의식은
+                        "데이터를 숨긴 채 분석할 수 있는가"입니다.
+                    </div>
+                </div>
+                <div class="link-card">
+                    <a href="https://eprint.iacr.org/2016/421" target="_blank">CKKS scheme</a>
+                    <div class="link-copy">
+                        실수·복소수처럼 근사값을 다루는 계산에 적합한 동형암호 방식입니다.
+                        이 앱에서는 회귀 계산에 필요한 합계와 곱셈 집계를 CKKS로 처리합니다.
+                    </div>
+                </div>
+                <div class="link-card">
+                    <a href="https://arxiv.org/abs/0811.3171" target="_blank">HHL algorithm</a>
+                    <div class="link-copy">
+                        A beta = b 같은 선형시스템을 양자적으로 푸는 알고리즘입니다.
+                        여기서는 CKKS로 만든 집계값을 선형시스템으로 바꾼 뒤 HHL solver로 연결합니다.
+                    </div>
+                </div>
+                <div class="link-card">
+                    <a href="https://arxiv.org/abs/2104.03152" target="_blank">TenSEAL</a>
+                    <div class="link-copy">
+                        Python에서 동형암호 기반 텐서 연산을 실험할 수 있는 라이브러리입니다.
+                        이 앱의 CKKS 암호화 집계 구현은 TenSEAL을 사용합니다.
+                    </div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.caption(
+            "주의: 현재 앱은 완전한 양자 동형암호 구현이 아니라, classical CKKS 집계와 HHL 선형시스템 풀이를 연결한 하이브리드 프로토타입입니다."
+        )
+
+
+def render_reader_guide() -> None:
+    st.markdown('<div class="section-label">이 앱에서 직접 확인할 것</div>', unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div class="result-note">
+            데이터를 바꾸거나 x/y 컬럼을 선택하면 그래프와 수치가 즉시 바뀝니다.
+            핵심 관찰점은 <b>Classical Regression</b>과 <b>CKKS + HHL</b> 결과가 얼마나 비슷한지입니다.
+            두 결과가 가깝다면, 암호화된 집계값을 사용해도 회귀 분석의 큰 형태를 보존했다는 의미로 해석할 수 있습니다.
         </div>
         """,
         unsafe_allow_html=True,
@@ -448,6 +598,38 @@ def render_metrics(title: str, data: dict, include_stats: bool = False) -> None:
             "</div>"
         )
     st.markdown(f'<div class="metric-grid">{"".join(cards)}</div>', unsafe_allow_html=True)
+
+
+def render_result_interpretation(result: dict) -> None:
+    classical = result.get("classical", {})
+    he_hhl = result.get("he_hhl", {})
+    if not classical or not he_hhl:
+        return
+
+    slope_gap = None
+    intercept_gap = None
+    r2_gap = None
+    if finite_float(classical.get("slope")) is not None and finite_float(he_hhl.get("slope")) is not None:
+        slope_gap = abs(float(classical["slope"]) - float(he_hhl["slope"]))
+    if finite_float(classical.get("intercept")) is not None and finite_float(he_hhl.get("intercept")) is not None:
+        intercept_gap = abs(float(classical["intercept"]) - float(he_hhl["intercept"]))
+    if finite_float(classical.get("r2")) is not None and finite_float(he_hhl.get("r2")) is not None:
+        r2_gap = abs(float(classical["r2"]) - float(he_hhl["r2"]))
+
+    st.markdown('<div class="section-label">결과 해석</div>', unsafe_allow_html=True)
+    st.markdown(
+        f"""
+        <div class="result-note">
+            이 비교는 평문으로 계산한 <b>Classical Regression</b>과, CKKS 암호문 상태에서 집계한 뒤
+            HHL로 선형시스템을 푼 <b>CKKS + HHL</b>의 차이를 보여줍니다.
+            Slope 차이는 <b>{html.escape(format_number(slope_gap))}</b>,
+            Intercept 차이는 <b>{html.escape(format_number(intercept_gap))}</b>,
+            R2 차이는 <b>{html.escape(format_number(r2_gap))}</b>입니다.
+            차이가 작을수록 암호화 집계를 거친 결과가 평문 회귀 결과와 비슷하게 유지되었다고 볼 수 있습니다.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_encrypted_preview(preview: dict) -> None:
@@ -680,7 +862,10 @@ def render_qhe_hhl_handoff(x_values: np.ndarray, y_values: np.ndarray) -> None:
 
 inject_page_styles()
 render_app_header()
+render_project_story()
 render_pipeline_overview()
+render_concept_guide()
+render_reader_guide()
 
 with st.sidebar:
     st.header("입력 데이터")
@@ -763,4 +948,5 @@ for target in targets:
         render_metrics("CKKS + HHL", result.get("he_hhl", {}), include_stats=True)
         render_encrypted_preview(result.get("he_hhl", {}).get("encrypted_preview", {}))
 
+    render_result_interpretation(result)
     render_qhe_hhl_handoff(x_values, y_values)
