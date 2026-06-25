@@ -344,6 +344,13 @@ def render_concept_guide() -> None:
             """
             <div class="link-grid">
                 <div class="link-card">
+                    <a href="https://scikit-learn.org/stable/modules/linear_model.html#ordinary-least-squares" target="_blank">Linear Regression Model</a>
+                    <div class="link-copy">
+                        x와 y 사이를 가장 잘 설명하는 직선을 찾는 기본 예측 모델입니다.
+                        이 앱에서는 Classical Regression을 기준선으로 두고 CKKS + HHL 결과와 비교합니다.
+                    </div>
+                </div>
+                <div class="link-card">
                     <a href="https://www.microsoft.com/en-us/research/project/microsoft-seal/" target="_blank">Homomorphic Encryption</a>
                     <div class="link-copy">
                         암호화된 데이터를 복호화하지 않고 계산하는 기술입니다. 이 프로젝트의 핵심 문제의식은
@@ -362,6 +369,13 @@ def render_concept_guide() -> None:
                     <div class="link-copy">
                         A beta = b 같은 선형시스템을 양자적으로 푸는 알고리즘입니다.
                         여기서는 CKKS로 만든 집계값을 선형시스템으로 바꾼 뒤 HHL solver로 연결합니다.
+                    </div>
+                </div>
+                <div class="link-card">
+                    <a href="https://arxiv.org/abs/2103.13211" target="_blank">Amplitude Encoding</a>
+                    <div class="link-copy">
+                        정규화된 classical vector의 각 값을 양자 상태의 amplitude에 넣는 encoding 방식입니다.
+                        이 앱에서는 전체 y값을 양자 상태로 옮기는 QHE handoff 검증에 사용합니다.
                     </div>
                 </div>
                 <div class="link-card">
@@ -815,6 +829,19 @@ def render_qhe_hhl_handoff(x_values: np.ndarray, y_values: np.ndarray) -> None:
         st.caption(
             "전체 y 컬럼을 scaling, padding, amplitude encoding한 뒤 Quantum One-Time Pad로 보호합니다. "
             "그 상태에서 identity-preserving Clifford 평가를 수행하고, 복호화 후 HHL 회귀 solver로 넘깁니다."
+        )
+        st.markdown(
+            """
+            <div class="result-note">
+                <b>왜 이 검증을 하나요?</b><br>
+                현재 기술 수준에서 HHL 전체를 완전한 Quantum Homomorphic Encryption 상태로 실행하기는 어렵습니다.
+                그래서 이 앱은 중간 단계로, classical 데이터가 amplitude encoding을 통해 양자 상태로 옮겨진 뒤
+                QOTP 암호화와 Clifford key update를 거쳐도 원래 상태가 잘 보존되는지 확인합니다.
+                Fidelity가 1에 가깝고 reconstruction error가 작다면, QHE 방식으로 데이터를 넘기는 handoff가
+                최소한 상태 보존 관점에서는 타당하다고 해석할 수 있습니다.
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
         try:
